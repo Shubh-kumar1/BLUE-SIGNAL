@@ -1,0 +1,37 @@
+[
+  {
+    "date": "2024-01-15T10:30:00Z",
+    "text": "Severe flooding on Main Street! Water is knee-deep and cars are getting stuck. Please avoid the area!",
+    "media_urls": ["https://example.com/flood1.jpg"],
+    "location": "Mumbai, Maharashtra",
+    "user": "@mumbai_citizen"
+  },
+  {
+    "date": "2024-01-15T11:15:00Z", 
+    "text": "Flash flood warning! Heavy rain causing rapid water accumulation in downtown area. Stay safe everyone!",
+    "media_urls": ["https://example.com/flood2.jpg"],
+    "location": "Mumbai, Maharashtra",
+    "user": "@weather_alert"
+  },
+  {
+    "date": "2024-01-15T12:00:00Z",
+    "text": "Urban flooding reported near railway station. Drainage system overwhelmed by heavy rainfall.",
+    "media_urls": [],
+    "location": "Mumbai, Maharashtra", 
+    "user": "@city_updates"
+  },
+  {
+    "date": "2024-01-15T13:45:00Z",
+    "text": "River overflow causing moderate flooding in residential areas. Water levels rising steadily.",
+    "media_urls": ["https://example.com/river1.jpg"],
+    "location": "Mumbai, Maharashtra",
+    "user": "@flood_monitor"
+  },
+  {
+    "date": "2024-01-15T14:20:00Z",
+    "text": "Drainage failure in commercial district. Streets flooded with standing water. Traffic disrupted.",
+    "media_urls": ["https://example.com/drainage1.jpg"],
+    "location": "Mumbai, Maharashtra",
+    "user": "@traffic_updates"
+  }
+]

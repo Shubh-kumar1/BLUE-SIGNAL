@@ -1,0 +1,266 @@
+/* User Profile Page */
+.user-profile {
+  font-family: 'Roboto Mono', monospace;
+  background-color: #659BB9;
+  min-height: 100vh;
+  padding: 40px 80px;
+}
+
+.profile-header {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  border-radius: 12px;
+  padding: 40px;
+  margin-bottom: 40px;
+}
+
+.profile-info {
+  text-align: center;
+}
+
+.username {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.full-name {
+  font-size: 24px;
+  color: #FFFCEF;
+  opacity: 0.8;
+  margin-bottom: 40px;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 40px;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px;
+  background-color: rgba(255, 252, 239, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 252, 239, 0.2);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #FFFCEF;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFCEF;
+  word-break: break-word;
+  text-align: center;
+}
+
+.profile-content {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.posts-section h2 {
+  font-size: 32px;
+  font-weight: 600;
+  color: #FFFCEF;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.user-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.post-item {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  border-radius: 8px;
+  padding: 32px;
+  transition: transform 0.2s ease;
+}
+
+.post-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 252, 239, 0.1);
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.post-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #FFFCEF;
+  margin: 0;
+  flex: 1;
+}
+
+.post-time {
+  font-size: 14px;
+  color: #FFFCEF;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.post-description {
+  font-size: 18px;
+  color: #FFFCEF;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.post-location {
+  font-size: 16px;
+  color: #FFFCEF;
+  opacity: 0.8;
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.post-stats {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: #FFFCEF;
+  opacity: 0.7;
+  flex-wrap: wrap;
+}
+
+.upvotes {
+  color: #4CAF50;
+}
+
+.downvotes {
+  color: #F44336;
+}
+
+.net-score {
+  font-weight: 600;
+}
+
+.status {
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.no-posts {
+  text-align: center;
+  padding: 80px;
+}
+
+.no-posts p {
+  font-size: 24px;
+  color: #FFFCEF;
+  opacity: 0.8;
+}
+
+.profile-footer {
+  text-align: center;
+  margin-top: 60px;
+  padding-top: 40px;
+  border-top: 2px solid #FFFCEF;
+}
+
+.back-btn {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  color: #FFFCEF;
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.back-btn:hover {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.loading, .error {
+  text-align: center;
+  font-size: 24px;
+  color: #FFFCEF;
+  padding: 80px;
+}
+
+.error {
+  color: #F44336;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .user-profile {
+    padding: 20px;
+  }
+  
+  .profile-header {
+    padding: 24px;
+  }
+  
+  .username {
+    font-size: 32px;
+  }
+  
+  .full-name {
+    font-size: 18px;
+  }
+  
+  .profile-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-width: 100%;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat {
+    padding: 16px;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+  
+  .post-item {
+    padding: 20px;
+  }
+  
+  .post-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .post-title {
+    font-size: 20px;
+  }
+  
+  .post-stats {
+    gap: 16px;
+  }
+}

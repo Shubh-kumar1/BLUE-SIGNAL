@@ -1,0 +1,291 @@
+/* Home Feed - Reddit Style */
+.home-feed {
+  font-family: 'Roboto Mono', monospace;
+  background-color: #659BB9;
+  min-height: 100vh;
+  padding: 40px 80px;
+}
+
+/* Citizen Header */
+.citizen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32px 40px;
+  border-bottom: 2px solid #FFFCEF;
+  margin-bottom: 40px;
+  background-color: #659BB9;
+}
+
+.header-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #FFFCEF;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.header-btn {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  color: #FFFCEF;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.header-btn:hover {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.report-btn {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.report-btn:hover {
+  background-color: #659BB9;
+  color: #FFFCEF;
+  border: 2px solid #FFFCEF;
+}
+
+.profile-btn,
+.logout-btn {
+  background-color: transparent;
+}
+
+.profile-btn:hover,
+.logout-btn:hover {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+
+.posts-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.post-card {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  border-radius: 8px;
+  padding: 32px;
+  display: flex;
+  gap: 24px;
+  transition: transform 0.2s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 252, 239, 0.1);
+}
+
+.post-votes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 60px;
+}
+
+.vote-btn {
+  background: none;
+  border: 2px solid #FFFCEF;
+  color: #FFFCEF;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vote-btn:hover:not(:disabled) {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.vote-btn.active {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.vote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upvote.active {
+  background-color: #4CAF50;
+  color: #FFFCEF;
+  border-color: #4CAF50;
+}
+
+.downvote.active {
+  background-color: #F44336;
+  color: #FFFCEF;
+  border-color: #F44336;
+}
+
+.vote-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFCEF;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.post-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.username {
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.username:hover {
+  opacity: 0.7;
+}
+
+.authenticity-score {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 252, 239, 0.1);
+}
+
+.post-time {
+  font-size: 14px;
+  color: #FFFCEF;
+  opacity: 0.6;
+}
+
+.post-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #FFFCEF;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.post-description {
+  font-size: 18px;
+  color: #FFFCEF;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.post-location {
+  font-size: 16px;
+  color: #FFFCEF;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.post-stats {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: #FFFCEF;
+  opacity: 0.7;
+}
+
+.status {
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.loading {
+  text-align: center;
+  font-size: 24px;
+  color: #FFFCEF;
+  padding: 80px;
+}
+
+.empty-feed {
+  text-align: center;
+  padding: 80px;
+}
+
+.empty-feed p {
+  font-size: 24px;
+  color: #FFFCEF;
+  opacity: 0.8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-feed {
+    padding: 20px;
+  }
+  
+  .citizen-header {
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px 20px;
+  }
+  
+  .header-title {
+    font-size: 24px;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+  
+  .header-btn {
+    width: 100%;
+  }
+  
+  .post-card {
+    padding: 20px;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .post-votes {
+    flex-direction: row;
+    justify-content: center;
+    min-width: auto;
+  }
+  
+  .post-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "user_id": "citizen_001",
+  "text_report": "Severe flooding on Main Street! Water is knee-deep and cars are getting stuck. Please avoid the area!",
+  "image": null,
+  "coordinates": {
+    "latitude": 19.0760,
+    "longitude": 72.8777
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

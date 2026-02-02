@@ -1,0 +1,186 @@
+/* Global Styles for BlueSignal - Minimal Design */
+
+:root {
+  --primary-color: #659BB9;
+  --text-color: #FFFCEF;
+  --bg-color: #659BB9;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Roboto Mono', monospace;
+  color: #FFFCEF;
+  background-color: #659BB9;
+  line-height: 1.4;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 400;
+  color: #FFFCEF;
+}
+
+h1 { font-size: 48px; font-weight: 700; }
+h2 { font-size: 36px; font-weight: 600; }
+h3 { font-size: 28px; font-weight: 600; }
+h4 { font-size: 24px; font-weight: 500; }
+h5 { font-size: 20px; font-weight: 500; }
+h6 { font-size: 18px; font-weight: 500; }
+
+p {
+  font-family: 'Roboto Mono', monospace;
+  margin-bottom: 24px;
+  color: #FFFCEF;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+a {
+  color: #FFFCEF;
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.7;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  width: 100%;
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.button {
+  display: inline-block;
+  padding: 20px 40px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  border: 2px solid #FFFCEF;
+  background: transparent;
+  color: #FFFCEF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.button:hover {
+  background: #FFFCEF;
+  color: #659BB9;
+}
+
+.button-primary {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.button-primary:hover {
+  background-color: #659BB9;
+  color: #FFFCEF;
+}
+
+.button-secondary {
+  background-color: transparent;
+  color: #FFFCEF;
+  border: 1px solid #FFFCEF;
+}
+
+.button-secondary:hover {
+  background-color: #FFFCEF;
+  color: #659BB9;
+}
+
+.card {
+  background-color: #659BB9;
+  border: 2px solid #FFFCEF;
+  padding: 40px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #FFFCEF;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mt-sm { margin-top: 16px; }
+.mt-md { margin-top: 32px; }
+.mt-lg { margin-top: 48px; }
+.mt-xl { margin-top: 64px; }
+
+.mb-sm { margin-bottom: 16px; }
+.mb-md { margin-bottom: 32px; }
+.mb-lg { margin-bottom: 48px; }
+.mb-xl { margin-bottom: 64px; }
+
+.p-sm { padding: 16px; }
+.p-md { padding: 32px; }
+.p-lg { padding: 48px; }
+.p-xl { padding: 64px; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  
+  .container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+  
+  .button {
+    padding: 10px 20px;
+    font-size: 12px;
+  }
+}
+
+/* Focus Styles */
+button:focus,
+a:focus,
+input:focus,
+select:focus {
+  outline: 1px solid #FFFCEF;
+  outline-offset: 2px;
+}

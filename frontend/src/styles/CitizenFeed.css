@@ -1,0 +1,176 @@
+.citizen-page {
+  min-height: 100vh;
+  background: #659BB9;
+  color: #FFFCEF;
+  font-family: 'Roboto Mono', monospace;
+  padding: 80px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 80px;
+  padding-bottom: 40px;
+  border-bottom: 2px solid #FFFCEF;
+}
+
+h1 {
+  font-size: 48px;
+  font-weight: 700;
+  margin: 0;
+  color: #FFFCEF;
+}
+
+.btn, .btn-secondary {
+  font-size: 18px;
+  padding: 20px 40px;
+  border: 2px solid #FFFCEF;
+  background: transparent;
+  color: #FFFCEF;
+  cursor: pointer;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+  margin-left: 20px;
+}
+
+.btn:hover, .btn-secondary:hover {
+  background: #FFFCEF;
+  color: #659BB9;
+}
+
+.message {
+  padding: 24px;
+  margin-bottom: 40px;
+  border: 2px solid #FFFCEF;
+  background: #659BB9;
+  font-size: 18px;
+  color: #FFFCEF;
+}
+
+.posts {
+  display: grid;
+  gap: 40px;
+}
+
+.card {
+  border: 2px solid #FFFCEF;
+  padding: 40px;
+  background: #659BB9;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.card h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+  color: #FFFCEF;
+}
+
+.status {
+  font-size: 16px;
+  padding: 12px 24px;
+  border: 2px solid #FFFCEF;
+  color: #FFFCEF;
+  font-weight: 600;
+}
+
+.status.processing {
+  color: #FFFCEF;
+}
+
+.status.verified {
+  border-color: #FFFCEF;
+  background: #FFFCEF;
+  color: #659BB9;
+}
+
+.card p {
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  color: #FFFCEF;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  color: #FFFCEF;
+  opacity: 0.8;
+}
+
+.empty {
+  text-align: center;
+  font-size: 24px;
+  color: #FFFCEF;
+  opacity: 0.7;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: #659BB9;
+  padding: 60px;
+  max-width: 600px;
+  width: 100%;
+  border: 2px solid #FFFCEF;
+}
+
+.modal h2 {
+  font-size: 28px;
+  margin: 0 0 40px 0;
+  color: #FFFCEF;
+  font-weight: 600;
+}
+
+.modal input,
+.modal textarea {
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 2px solid #FFFCEF;
+  background: #659BB9;
+  color: #FFFCEF;
+  font-size: 18px;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.modal textarea {
+  height: 80px;
+  resize: vertical;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 20px;
+  margin-top: 40px;
+}
+
+.actions .btn,
+.actions .btn-secondary {
+  flex: 1;
+  margin: 0;
+}
