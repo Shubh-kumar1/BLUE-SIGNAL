@@ -897,7 +897,11 @@ def test_route():
     ).model_dump())
 
 database.init_db()
-initialize_models()
+
+if os.getenv("LOAD_AI_MODELS", "false").lower() == "true":
+    initialize_models()
+else:
+    logger.info("AI models disabled for lightweight deployment")
 
 if __name__ == '__main__':
     logger.info("Initializing BlueSignal backend...")
