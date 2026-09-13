@@ -110,7 +110,10 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def initialize_models():
     global text_classifier, flood_classifier, image_classifier, geolocator, report_agent, verification_agent
-    
+
+    if os.getenv("LIGHTWEIGHT_MODE", "false").lower() == "true":
+        logger.info("LIGHTWEIGHT_MODE enabled - skipping AI model loading")
+        return True
     try:
         logger.info("Loading AI models...")
         try:
