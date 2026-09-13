@@ -27,10 +27,15 @@ import database
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+aapp = Flask(__name__)
 app.config['SECRET_KEY'] = 'bluesignal-secret-key'
-CORS(app, origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"])
 
+CORS(app, origins=[
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://blue-signal-l648rv5mv-shubhamraj9493-9503s-projects.vercel.app"
+])
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.static_folder = 'uploads'
