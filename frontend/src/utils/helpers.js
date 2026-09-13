@@ -168,7 +168,7 @@ export const filterReports = (reports, query) => {
  */
 export const checkBackendConnection = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/health')
+    const response = await fetch('https://blue-signal-backend.onrender.com/api/health')
     return response.ok
   } catch (error) {
     return false
