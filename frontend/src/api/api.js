@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: baseURL: 'https://blue-signal-backend.onrender.com/api',
+  baseURL: 'https://blue-signal-backend.onrender.com/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
