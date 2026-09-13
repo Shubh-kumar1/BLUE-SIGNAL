@@ -24,7 +24,7 @@ function UserProfile() {
   const loadUserProfile = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get(`http://127.0.0.1:5000/api/users/${username}`, {
+      const response = await axios.get(`https://blue-signal-backend.onrender.com/api/users/${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setUser(response.data.user)
