@@ -36,7 +36,9 @@ CORS(
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://blue-signal-1648rv5mv-shubhamraj9493-9503s-projects.vercel.app"
+        "https://blue-signal.vercel.app",
+        "https://blue-signal-1648rv5mv-shubhamraj9493-9503s-projects.vercel.app",
+        "https://blue-signal-l648rv5mv-shubhamraj9493-9503s-projects.vercel.app"
     ],
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
