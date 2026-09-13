@@ -893,6 +893,9 @@ def test_route():
         data={"timestamp": datetime.now().isoformat()}
     ).model_dump())
 
+database.init_db()
+initialize_models()
+
 if __name__ == '__main__':
     logger.info("Initializing BlueSignal backend...")
     database.init_db()
