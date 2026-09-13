@@ -22,7 +22,7 @@ function HomeFeed() {
     loadPosts()
     // SSE subscription for real-time updates
     try {
-      const es = new EventSource(`http://127.0.0.1:5000/api/posts/stream?token=${encodeURIComponent(token)}`)
+     const es = new EventSource(`https://blue-signal-backend.onrender.com/api/posts/stream?token=${encodeURIComponent(token)}`)
       esRef.current = es
       es.onmessage = (evt) => {
         try {
@@ -48,7 +48,7 @@ function HomeFeed() {
   const loadPosts = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://127.0.0.1:5000/api/posts', {
+      const response = await axios.get('https://blue-signal-backend.onrender.com/api/posts', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setPosts(response.data.posts || [])
@@ -62,7 +62,7 @@ function HomeFeed() {
   const handleVote = async (postId, voteType) => {
     try {
       const token = localStorage.getItem('token')
-      await axios.post(`http://127.0.0.1:5000/api/posts/${postId}/vote`, 
+      await axios.post(`https://blue-signal-backend.onrender.com/api/posts/${postId}/vote`,
         { vote_type: voteType },
         { headers: { Authorization: `Bearer ${token}` } }
       )
