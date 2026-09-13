@@ -51,12 +51,12 @@ function AuthPage() {
         }
         console.log('Registration data:', registerData)
         
-        const registerResponse = await axios.post('http://127.0.0.1:5000/api/auth/register', registerData)
+        const registerResponse = await axios.post('https://blue-signal-backend.onrender.com/api/auth/register', registerData)
         console.log('Registration response:', registerResponse.data)
       }
       
       console.log('Attempting citizen login...')
-      const response = await axios.post('http://127.0.0.1:5000/api/auth/login', {
+      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/login', {
         username: citizenData.username,
         password: citizenData.password
       })
