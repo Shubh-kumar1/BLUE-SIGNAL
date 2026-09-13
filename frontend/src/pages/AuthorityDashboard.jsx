@@ -26,7 +26,7 @@ function AuthorityDashboard() {
 
     ;(async () => {
       try {
-        const res = await axios.get('http://127.0.0.1:5000/api/auth/authority/hotspots', {
+        const res = await axios.get('https://blue-signal-backend.onrender.com/api/auth/authority/hotspots', {
           headers: { Authorization: `Bearer ${token}` }
         })
         setReports(res.data.hotspots || [])
@@ -36,7 +36,7 @@ function AuthorityDashboard() {
     })()
 
     try {
-      const es = new EventSource(`http://127.0.0.1:5000/api/auth/authority/hotspots/stream?token=${encodeURIComponent(token)}`)
+      const es = new EventSource(`https://blue-signal-backend.onrender.com/api/auth/authority/hotspots/stream?token=${encodeURIComponent(token)}`)
       eventSourceRef.current = es
       es.onmessage = (evt) => {
         try {
@@ -138,12 +138,12 @@ function AuthorityDashboard() {
           <button onClick={() => {
             const token = localStorage.getItem('token')
             if (!token) return
-            window.open(`http://127.0.0.1:5000/api/auth/authority/reports/export?format=json&token=${encodeURIComponent(token)}`,'_blank')
+            window.open(`https://blue-signal-backend.onrender.com/api/auth/authority/reports/export?format=json&token=${encodeURIComponent(token)}`,'_blank')
           }} className="btn" style={{ marginRight: 16 }}>DOWNLOAD JSON</button>
           <button onClick={() => {
             const token = localStorage.getItem('token')
             if (!token) return
-            window.open(`http://127.0.0.1:5000/api/auth/authority/reports/export?format=csv&token=${encodeURIComponent(token)}`,'_blank')
+            window.open(`https://blue-signal-backend.onrender.com/api/auth/authority/reports/export?format=csv&token=${encodeURIComponent(token)}`,'_blank')
           }} className="btn" style={{ marginRight: 16 }}>DOWNLOAD CSV</button>
           <button onClick={() => { localStorage.clear(); navigate('/auth') }} className="btn">LOGOUT</button>
         </div>
