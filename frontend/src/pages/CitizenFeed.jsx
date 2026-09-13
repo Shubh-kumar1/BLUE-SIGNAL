@@ -29,7 +29,7 @@ function CitizenFeed() {
   const loadFeed = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://127.0.0.1:5000/api/auth/citizen/posts', {
+      const response = await axios.get('https://blue-signal-backend.onrender.com/api/auth/citizen/posts', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setPosts(response.data.posts || [])
@@ -52,7 +52,7 @@ function CitizenFeed() {
       fd.append('location_name', 'Current Location')
       if (imageFile) fd.append('image', imageFile)
 
-      const response = await axios.post('http://127.0.0.1:5000/api/auth/citizen/posts', fd, {
+      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/citizen/posts', fd, {
         headers: { 
           Authorization: `Bearer ${token}`
         }
