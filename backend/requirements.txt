@@ -3,7 +3,6 @@ flask-cors==4.0.0
 transformers==4.35.2
 torch==2.1.1
 geopy==2.4.0
-phi-agent==0.0.1
 pydantic==2.5.0
 pyjwt==2.8.0
 werkzeug==2.3.7
