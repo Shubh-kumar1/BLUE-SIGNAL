@@ -88,7 +88,7 @@ function AuthPage() {
 
     try {
       if (authorityMode === 'signup') {
-        await axios.post('http://127.0.0.1:5000/api/auth/register', {
+        await axios.post('https://blue-signal-backend.onrender.com/api/auth/register', {
           username: authorityData.username,
           email: authorityData.official_email || authorityData.email,
           password: authorityData.password,
@@ -97,7 +97,7 @@ function AuthPage() {
         })
       }
       
-      const response = await axios.post('http://127.0.0.1:5000/api/auth/login', {
+      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/login', {
         username: authorityData.username,
         password: authorityData.password
       })
