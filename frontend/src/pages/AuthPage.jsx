@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../api/api'
 import '../styles/AuthPage.css'
 
 function AuthPage() {
@@ -36,43 +37,39 @@ function AuthPage() {
 
   const handleCitizenSubmit = async (e) => {
     e.preventDefault()
-    setLoading({ ...loading, citizen: true })
-    setErrors({ ...errors, citizen: '' })
+    setLoading((current) => ({ ...current, citizen: true }))
+    setErrors((current) => ({ ...current, citizen: '' }))
 
     try {
-      console.log('Citizen form data:', citizenData)
-      console.log('Citizen mode:', citizenMode)
-      
       if (citizenMode === 'signup') {
-        console.log('Attempting citizen registration...')
-        const registerData = {
+        await axios.post(`${API_BASE_URL}/api/auth/register`, {
           ...citizenData,
           role: 'citizen'
-        }
-        console.log('Registration data:', registerData)
-        
-        const registerResponse = await axios.post('https://blue-signal-backend.onrender.com/api/auth/register', registerData)
-        console.log('Registration response:', registerResponse.data)
+        })
       }
       
-      console.log('Attempting citizen login...')
-      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         username: citizenData.username,
         password: citizenData.password
       })
-      console.log('Login response:', response.data)
 
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        navigate('/report')
+      if (response.data.user?.role !== 'citizen') {
+        throw new Error('This account belongs to the Authority Portal. Please log in there.')
       }
+
+      if (!response.data.token) throw new Error('Login succeeded but no session token was returned.')
+
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+      navigate('/report')
     } catch (err) {
       console.error('Citizen auth error:', err)
-      console.error('Error response:', err.response?.data)
-      setErrors({ ...errors, citizen: err.response?.data?.error || 'Authentication failed' })
+      setErrors((current) => ({
+        ...current,
+        citizen: err.response?.data?.error || err.message || 'Authentication failed'
+      }))
     } finally {
-      setLoading({ ...loading, citizen: false })
+      setLoading((current) => ({ ...current, citizen: false }))
     }
   }
 
@@ -83,12 +80,12 @@ function AuthPage() {
 
   const handleAuthoritySubmit = async (e) => {
     e.preventDefault()
-    setLoading({ ...loading, authority: true })
-    setErrors({ ...errors, authority: '' })
+    setLoading((current) => ({ ...current, authority: true }))
+    setErrors((current) => ({ ...current, authority: '' }))
 
     try {
       if (authorityMode === 'signup') {
-        await axios.post('https://blue-signal-backend.onrender.com/api/auth/register', {
+        await axios.post(`${API_BASE_URL}/api/auth/register`, {
           username: authorityData.username,
           email: authorityData.official_email || authorityData.email,
           password: authorityData.password,
@@ -97,20 +94,27 @@ function AuthPage() {
         })
       }
       
-      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         username: authorityData.username,
         password: authorityData.password
       })
 
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        navigate('/dashboard')
+      if (response.data.user?.role !== 'authority') {
+        throw new Error('This account belongs to the Citizen Portal. Please log in there.')
       }
+
+      if (!response.data.token) throw new Error('Login succeeded but no session token was returned.')
+
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+      navigate('/dashboard')
     } catch (err) {
-      setErrors({ ...errors, authority: err.response?.data?.error || 'Authentication failed' })
+      setErrors((current) => ({
+        ...current,
+        authority: err.response?.data?.error || err.message || 'Authentication failed'
+      }))
     } finally {
-      setLoading({ ...loading, authority: false })
+      setLoading((current) => ({ ...current, authority: false }))
     }
   }
 
@@ -334,6 +338,20 @@ function AuthPage() {
               <div className="demo-credentials">
                 <p className="demo-title">Demo Account:</p>
                 <p>Username: <code>admin</code> | Password: <code>admin123</code></p>
+                <button
+                  type="button"
+                  className="demo-fill-btn"
+                  onClick={() => {
+                    setAuthorityData((current) => ({
+                      ...current,
+                      username: 'admin',
+                      password: 'admin123'
+                    }))
+                    setErrors((current) => ({ ...current, authority: '' }))
+                  }}
+                >
+                  Fill demo credentials
+                </button>
               </div>
             )}
           </div>
@@ -351,4 +369,3 @@ function AuthPage() {
 }
 
 export default AuthPage
-

@@ -476,15 +476,31 @@ def health():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.json
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON request body is required'}), 400
+
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
     role = data.get('role', 'citizen')
     full_name = data.get('full_name', '')
-    
+
+    if not all(isinstance(value, str) and value.strip() for value in (username, email, password, role)):
+        return jsonify({'error': 'Username, email, password, and role are required'}), 400
+    if role not in ('citizen', 'authority'):
+        return jsonify({'error': 'Role must be citizen or authority'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+    username = username.strip()
+    email = email.strip().lower()
+    full_name = full_name.strip() if isinstance(full_name, str) else ''
+
     if database.get_user_by_username(username):
-        return jsonify({'error': 'Username already exists'}), 400
+        return jsonify({'error': 'Username already exists'}), 409
+    if database.get_user_by_email(email):
+        return jsonify({'error': 'Email already exists'}), 409
     
     hashed_password = hash_password(password)
     user_id = database.create_user(username, email, hashed_password, role, full_name)
@@ -495,11 +511,16 @@ def register():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON request body is required'}), 400
+
     username = data.get('username')
     password = data.get('password')
+    if not isinstance(username, str) or not username.strip() or not isinstance(password, str) or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
     
-    user = database.get_user_by_username(username)
+    user = database.get_user_by_username(username.strip())
     if not user or not verify_password(password, user['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
     
@@ -827,7 +848,7 @@ def get_user_profile_by_username(current_user, username):
     
     profile = database.get_user_profile(user['id'])
     if profile:
-        return jsonify({'user': profile})
+        return jsonify({'user': public_user_profile(profile)})
     else:
         return jsonify({'error': 'Failed to load profile'}), 500
 
@@ -836,9 +857,16 @@ def get_user_profile_by_username(current_user, username):
 def get_user_profile_by_id(current_user, user_id):
     profile = database.get_user_profile(user_id)
     if profile:
-        return jsonify({'user': profile})
+        return jsonify({'user': public_user_profile(profile)})
     else:
         return jsonify({'error': 'User not found'}), 404
+
+def public_user_profile(profile):
+    return {
+        key: profile[key]
+        for key in ('username', 'full_name', 'authenticity_score', 'created_at', 'posts')
+        if key in profile
+    }
 
 @app.route('/api/classify/text', methods=['POST'])
 def classify_text():

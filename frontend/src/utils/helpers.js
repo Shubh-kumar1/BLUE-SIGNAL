@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../api/api'
+
 /**
  * Utility helper functions for BlueSignal frontend
  */
@@ -168,7 +170,7 @@ export const filterReports = (reports, query) => {
  */
 export const checkBackendConnection = async () => {
   try {
-    const response = await fetch('https://blue-signal-backend.onrender.com/api/health')
+    const response = await fetch(`${API_BASE_URL}/api/health`)
     return response.ok
   } catch (error) {
     return false
@@ -223,4 +225,3 @@ export const exportToJSON = (data, filename = 'reports.json') => {
   link.click()
   URL.revokeObjectURL(url)
 }
-

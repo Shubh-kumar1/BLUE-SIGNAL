@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../api/api'
 import '../styles/UserProfile.css'
 
 function UserProfile() {
@@ -24,7 +25,7 @@ function UserProfile() {
   const loadUserProfile = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get(`https://blue-signal-backend.onrender.com/api/users/${username}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/users/${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setUser(response.data.user)

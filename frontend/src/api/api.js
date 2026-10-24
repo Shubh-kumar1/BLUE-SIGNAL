@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? '' : 'https://blue-signal-backend.onrender.com')
+).replace(/\/$/, '')
+
 const api = axios.create({
-  baseURL: 'https://blue-signal-backend.onrender.com/api',
+  baseURL: `${API_BASE_URL}/api`,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -123,4 +128,3 @@ export const debugVerification = async (citizenText, socialText) => {
 }
 
 export default api
-

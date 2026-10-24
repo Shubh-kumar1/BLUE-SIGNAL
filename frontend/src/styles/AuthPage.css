@@ -182,6 +182,31 @@
   color: #659BB9;
 }
 
+.demo-credentials {
+  margin-top: 20px;
+  color: #FFFCEF;
+  font-size: 14px;
+  text-align: center;
+}
+
+.demo-title {
+  font-weight: 700;
+}
+
+.demo-fill-btn {
+  padding: 10px 16px;
+  border: 1px solid #FFFCEF;
+  background: transparent;
+  color: #FFFCEF;
+  font-family: 'Roboto Mono', monospace;
+  cursor: pointer;
+}
+
+.demo-fill-btn:hover {
+  background: #FFFCEF;
+  color: #659BB9;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .auth-split-container {

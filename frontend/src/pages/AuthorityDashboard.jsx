@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../api/api'
 import '../styles/AuthorityDashboard.css'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -26,7 +27,7 @@ function AuthorityDashboard() {
 
     ;(async () => {
       try {
-        const res = await axios.get('https://blue-signal-backend.onrender.com/api/auth/authority/hotspots', {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/authority/hotspots`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         setReports(res.data.hotspots || [])
@@ -36,7 +37,7 @@ function AuthorityDashboard() {
     })()
 
     try {
-      const es = new EventSource(`https://blue-signal-backend.onrender.com/api/auth/authority/hotspots/stream?token=${encodeURIComponent(token)}`)
+      const es = new EventSource(`${API_BASE_URL}/api/auth/authority/hotspots/stream?token=${encodeURIComponent(token)}`)
       eventSourceRef.current = es
       es.onmessage = (evt) => {
         try {
@@ -138,12 +139,12 @@ function AuthorityDashboard() {
           <button onClick={() => {
             const token = localStorage.getItem('token')
             if (!token) return
-            window.open(`https://blue-signal-backend.onrender.com/api/auth/authority/reports/export?format=json&token=${encodeURIComponent(token)}`,'_blank')
+            window.open(`${API_BASE_URL}/api/auth/authority/reports/export?format=json&token=${encodeURIComponent(token)}`,'_blank')
           }} className="btn" style={{ marginRight: 16 }}>DOWNLOAD JSON</button>
           <button onClick={() => {
             const token = localStorage.getItem('token')
             if (!token) return
-            window.open(`https://blue-signal-backend.onrender.com/api/auth/authority/reports/export?format=csv&token=${encodeURIComponent(token)}`,'_blank')
+            window.open(`${API_BASE_URL}/api/auth/authority/reports/export?format=csv&token=${encodeURIComponent(token)}`,'_blank')
           }} className="btn" style={{ marginRight: 16 }}>DOWNLOAD CSV</button>
           <button onClick={() => { localStorage.clear(); navigate('/auth') }} className="btn">LOGOUT</button>
         </div>

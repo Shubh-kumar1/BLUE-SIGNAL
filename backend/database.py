@@ -141,6 +141,16 @@ def get_user_by_username(username):
         return dict(user)
     return None
 
+def get_user_by_email(email):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        return dict(user)
+    return None
+
 def create_post(user_id, title, description, media_url, latitude, longitude, location_name):
     conn = get_connection()
     cursor = conn.cursor()
@@ -315,4 +325,3 @@ def get_reports_for_map():
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
-

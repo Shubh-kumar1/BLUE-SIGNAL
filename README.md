@@ -123,6 +123,8 @@ blue-signal/
    - Register as a citizen or authority user
    - Start reporting floods or monitoring the dashboard
 
+During development, the frontend uses the local backend through the Vite proxy. For a deployed frontend using a different backend, set `VITE_API_BASE_URL` to its origin (without `/api`).
+
 ### Default Demo Accounts
 
 The database is initialized with demo accounts:
@@ -132,6 +134,8 @@ The database is initialized with demo accounts:
   - `floodwatcher` / `password123`
   - `mumbai_resident` / `password123`
   - `weather_alert` / `password123`
+
+On the Authority Portal, select **Fill demo credentials** to populate the admin login.
 
 ## 📱 Features
 

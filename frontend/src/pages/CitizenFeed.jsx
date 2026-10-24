@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '../api/api'
 import '../styles/CitizenFeed.css'
 
 function CitizenFeed() {
@@ -29,7 +30,7 @@ function CitizenFeed() {
   const loadFeed = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('https://blue-signal-backend.onrender.com/api/auth/citizen/posts', {
+      const response = await axios.get(`${API_BASE_URL}/api/auth/citizen/posts`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setPosts(response.data.posts || [])
@@ -52,7 +53,7 @@ function CitizenFeed() {
       fd.append('location_name', 'Current Location')
       if (imageFile) fd.append('image', imageFile)
 
-      const response = await axios.post('https://blue-signal-backend.onrender.com/api/auth/citizen/posts', fd, {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/citizen/posts`, fd, {
         headers: { 
           Authorization: `Bearer ${token}`
         }
