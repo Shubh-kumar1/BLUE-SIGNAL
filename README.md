@@ -91,7 +91,11 @@ blue-signal/
    # Install dependencies
    pip install -r requirements.txt
    
-   # Set environment variables (optional)
+   # Set a unique signing key (required; generate a fresh value locally)
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   export SECRET_KEY="<paste-generated-value>"
+
+   # AI provider keys are optional
    export GOOGLE_API_KEY="your-google-api-key"
    export GROQ_API_KEY="your-groq-api-key"
    ```
@@ -124,6 +128,8 @@ blue-signal/
    - Start reporting floods or monitoring the dashboard
 
 During development, the frontend uses the local backend through the Vite proxy. For a deployed frontend using a different backend, set `VITE_API_BASE_URL` to its origin (without `/api`).
+
+For local backend auth, set `SECRET_KEY` to a generated value at least 32 characters long. In Render, configure `SECRET_KEY` as a secret environment variable before deploying; changing it invalidates existing JWT sessions. The backend only loads AI models when `LOAD_AI_MODELS=true`, so login and signup do not require model initialization.
 
 ### Default Demo Accounts
 
@@ -162,13 +168,15 @@ On the Authority Portal, select **Fill demo credentials** to populate the admin 
 
 ### Environment Variables
 
-Create a `.env` file in the `backend/` directory (or set environment variables):
+Set these variables in your shell or hosting platform. The backend does not automatically load a `.env` file. `SECRET_KEY` is required and must be at least 32 characters long. Generate it locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`; do not commit it.
 
 ```env
+SECRET_KEY=<generated-random-value>
 GOOGLE_API_KEY=your-google-api-key
 GROQ_API_KEY=your-groq-api-key
-SECRET_KEY=your-secret-key-for-jwt
 ```
+
+For Vercel, `VITE_API_BASE_URL` is optional when using the default production API. If set, use the backend origin without a trailing slash or `/api`, then redeploy the frontend. Optional backend variables are `GOOGLE_API_KEY`, `GROQ_API_KEY`, and `LOAD_AI_MODELS`.
 
 ### CORS Configuration
 
@@ -193,8 +201,16 @@ python backend/app.py  # Will recreate the database
 
 ```bash
 cd backend
+python -m unittest test_auth -v
 python test_db.py       # Test database operations
 python test_backend.py  # Test API endpoints (requires server running)
+```
+
+### Frontend Tests
+
+```bash
+cd frontend
+npm test
 ```
 
 ### API Health Check

@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import logging
+from werkzeug.security import generate_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,6 @@ def init_db():
         )
     ''')
     
-    import hashlib
-    
     demo_users = [
         ('admin', 'admin@bluesignal.gov', 'admin123', 'authority', 'System Admin', 0),
         ('floodwatcher', 'watcher@example.com', 'password123', 'citizen', 'Sarah Johnson', 15),
@@ -89,7 +88,7 @@ def init_db():
     for username, email, password, role, full_name, score in demo_users:
         cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
         if not cursor.fetchone():
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            hashed_password = generate_password_hash(password)
             cursor.execute('''
                 INSERT INTO users (username, email, password, role, full_name, authenticity_score)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -118,38 +117,43 @@ def init_db():
 
 def create_user(username, email, password, role, full_name):
     conn = get_connection()
-    cursor = conn.cursor()
     try:
+        cursor = conn.cursor()
         cursor.execute('INSERT INTO users (username, email, password, role, full_name) VALUES (?, ?, ?, ?, ?)',
                       (username, email, password, role, full_name))
         conn.commit()
-        user_id = cursor.lastrowid
-        return user_id
-    except Exception as e:
-        logger.error(f"Error creating user: {e}")
-        return None
+        return cursor.lastrowid
     finally:
         conn.close()
 
 def get_user_by_username(username):
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        return dict(user)
-    return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        return dict(user) if user else None
+    finally:
+        conn.close()
 
 def get_user_by_email(email):
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        return dict(user)
-    return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE lower(email) = lower(?)', (email,))
+        user = cursor.fetchone()
+        return dict(user) if user else None
+    finally:
+        conn.close()
+
+def update_user_password(user_id, password_hash):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET password = ? WHERE id = ?', (password_hash, user_id))
+        conn.commit()
+    finally:
+        conn.close()
 
 def create_post(user_id, title, description, media_url, latitude, longitude, location_name):
     conn = get_connection()
@@ -249,16 +253,6 @@ def get_user_profile(user_id):
         conn.close()
         return user_dict
     conn.close()
-    return None
-
-def get_user_by_username(username):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        return dict(user)
     return None
 
 def create_report(post_id, user_id, urgency_level, flood_type, confidence_score, verified, ai_summary, latitude, longitude, location_name):

@@ -1,15 +1,16 @@
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
-from transformers import pipeline
-import torch
 import json
 import os
 from geopy.geocoders import Nominatim
 import requests
 # from phi.agent import Agent
 # from phi.model.google import Gemini
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
+import re
+import sqlite3
+import hmac
 from pydantic import BaseModel, ValidationError
 from typing import Dict, List, Optional, Union
 import traceback
@@ -21,6 +22,7 @@ import queue
 import hashlib
 import csv
 import io
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import database
 
@@ -28,7 +30,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'bluesignal-secret-key'
+secret_key = os.getenv('SECRET_KEY')
+if not secret_key:
+    raise RuntimeError('SECRET_KEY environment variable is required')
+if len(secret_key) < 32:
+    raise RuntimeError('SECRET_KEY must contain at least 32 characters')
+app.config['SECRET_KEY'] = secret_key
 
 CORS(
     app,
@@ -113,12 +120,18 @@ hotspot_listeners = []
 post_listeners = []
 
 def hash_password(password: str) -> str:
-    """Simple password hashing using SHA256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify password against hash"""
-    return hash_password(password) == hashed
+    if hashed.startswith(('scrypt:', 'pbkdf2:')):
+        return check_password_hash(hashed, password)
+    if re.fullmatch(r'[a-fA-F0-9]{64}', hashed):
+        legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+        return hmac.compare_digest(legacy_hash, hashed)
+    return False
+
+def is_legacy_password_hash(hashed: str) -> bool:
+    return re.fullmatch(r'[a-fA-F0-9]{64}', hashed) is not None
 
 def initialize_models():
     global text_classifier, flood_classifier, image_classifier, geolocator, report_agent, verification_agent
@@ -127,6 +140,9 @@ def initialize_models():
         logger.info("LIGHTWEIGHT_MODE enabled - skipping AI model loading")
         return True
     try:
+        import torch
+        from transformers import pipeline
+
         logger.info("Loading AI models...")
         try:
             torch.set_num_threads(max(1, torch.get_num_threads()))
@@ -304,6 +320,7 @@ def verify_data_with_agent(citizen_data: Dict, social_data: Dict) -> bool:
         verification_text = str(response.content).strip()
         logger.info(f"Verification agent response: {verification_text}")
         
+        from transformers import pipeline
         verification_classifier = pipeline("zero-shot-classification", 
                                         model="typeform/distilbert-base-uncased-mnli")
         labels = ["positive agreement", "negative disagreement"]
@@ -456,18 +473,29 @@ def token_required(f):
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        if not token:
+        authorization = request.headers.get('Authorization', '')
+        parts = authorization.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
             return jsonify({'error': 'No token provided'}), 401
         try:
-            token = token.split(' ')[1]
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            current_user = database.get_user_by_username(data['username'])
-            if not current_user:
-                return jsonify({'error': 'User not found'}), 401
-            return f(current_user, *args, **kwargs)
-        except:
+            data = jwt.decode(parts[1], app.config['SECRET_KEY'], algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token has expired'}), 401
+        except jwt.InvalidTokenError:
             return jsonify({'error': 'Invalid token'}), 401
+
+        if not isinstance(data, dict) or not isinstance(data.get('username'), str):
+            return jsonify({'error': 'Invalid token'}), 401
+
+        try:
+            current_user = database.get_user_by_username(data['username'])
+        except sqlite3.Error:
+            logger.exception('Database error while validating authenticated user')
+            return jsonify({'error': 'Authentication service temporarily unavailable'}), 503
+
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 401
+        return f(current_user, *args, **kwargs)
     return decorated
 
 @app.route('/api/health', methods=['GET'])
@@ -490,24 +518,33 @@ def register():
         return jsonify({'error': 'Username, email, password, and role are required'}), 400
     if role not in ('citizen', 'authority'):
         return jsonify({'error': 'Role must be citizen or authority'}), 400
-    if len(password) < 6:
+    if len(username.strip()) > 64 or len(email.strip()) > 254:
+        return jsonify({'error': 'Username or email is too long'}), 400
+    if len(password) < 6 or len(password) > 1024:
         return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email.strip()):
+        return jsonify({'error': 'A valid email address is required'}), 400
 
     username = username.strip()
     email = email.strip().lower()
     full_name = full_name.strip() if isinstance(full_name, str) else ''
 
-    if database.get_user_by_username(username):
-        return jsonify({'error': 'Username already exists'}), 409
-    if database.get_user_by_email(email):
-        return jsonify({'error': 'Email already exists'}), 409
-    
-    hashed_password = hash_password(password)
-    user_id = database.create_user(username, email, hashed_password, role, full_name)
-    
-    if user_id:
+    try:
+        if database.get_user_by_username(username):
+            return jsonify({'error': 'Username already exists'}), 409
+        if database.get_user_by_email(email):
+            return jsonify({'error': 'Email already exists'}), 409
+
+        user_id = database.create_user(username, email, hash_password(password), role, full_name)
         return jsonify({'message': 'User registered', 'user_id': user_id}), 201
-    return jsonify({'error': 'Registration failed'}), 500
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'Username or email already exists'}), 409
+    except sqlite3.Error:
+        logger.exception('Database error during registration')
+        return jsonify({'error': 'Registration is temporarily unavailable'}), 500
+    except Exception:
+        logger.exception('Unexpected error during registration')
+        return jsonify({'error': 'Registration failed'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -520,25 +557,35 @@ def login():
     if not isinstance(username, str) or not username.strip() or not isinstance(password, str) or not password:
         return jsonify({'error': 'Username and password are required'}), 400
     
-    user = database.get_user_by_username(username.strip())
-    if not user or not verify_password(password, user['password']):
-        return jsonify({'error': 'Invalid credentials'}), 401
-    
-    token = jwt.encode({
-        'username': user['username'],
-        'role': user['role'],
-        'exp': datetime.utcnow() + timedelta(hours=24)
-    }, app.config['SECRET_KEY'], algorithm='HS256')
-    
-    return jsonify({
-        'token': token,
-        'user': {
-            'id': user['id'],
+    try:
+        user = database.get_user_by_username(username.strip())
+        if not user or not verify_password(password, user['password']):
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        if is_legacy_password_hash(user['password']):
+            database.update_user_password(user['id'], hash_password(password))
+
+        token = jwt.encode({
             'username': user['username'],
             'role': user['role'],
-            'full_name': user['full_name']
-        }
-    })
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+
+        return jsonify({
+            'token': token,
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'role': user['role'],
+                'full_name': user['full_name']
+            }
+        })
+    except sqlite3.Error:
+        logger.exception('Database error during login')
+        return jsonify({'error': 'Login is temporarily unavailable'}), 503
+    except Exception:
+        logger.exception('Unexpected error during login')
+        return jsonify({'error': 'Login failed'}), 500
 
 @app.route('/api/auth/citizen/posts', methods=['POST'])
 @token_required
@@ -945,13 +992,7 @@ else:
 
 if __name__ == '__main__':
     logger.info("Initializing BlueSignal backend...")
-    database.init_db()
-    logger.info("Database initialized successfully")
-    
-    if not initialize_models():
-        logger.error("Failed to initialize models. Exiting...")
-        exit(1)
-    
+
     logger.info("Available endpoints:")
     logger.info("- POST /api/auth/register - User registration")
     logger.info("- POST /api/auth/login - User login")

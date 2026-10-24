@@ -1,7 +1,13 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { API_BASE_URL } from '../api/api'
+import {
+  AUTH_REQUEST_TIMEOUT_MS,
+  getAuthErrorMessage,
+  parseAuthResponse,
+  runAuthSubmission
+} from '../utils/auth'
 import '../styles/AuthPage.css'
 
 function AuthPage() {
@@ -29,92 +35,111 @@ function AuthPage() {
   
   const [loading, setLoading] = useState({ citizen: false, authority: false })
   const [errors, setErrors] = useState({ citizen: '', authority: '' })
+  const citizenSubmissionLock = useRef(false)
+  const authoritySubmissionLock = useRef(false)
 
   // Citizen handlers
   const handleCitizenChange = (e) => {
     setCitizenData({ ...citizenData, [e.target.name]: e.target.value })
+    setErrors((current) => ({ ...current, citizen: '' }))
   }
 
   const handleCitizenSubmit = async (e) => {
     e.preventDefault()
-    setLoading((current) => ({ ...current, citizen: true }))
+    if (!e.currentTarget.checkValidity()) {
+      e.currentTarget.reportValidity()
+      return
+    }
     setErrors((current) => ({ ...current, citizen: '' }))
 
+    let accountCreated = false
     try {
-      if (citizenMode === 'signup') {
-        await axios.post(`${API_BASE_URL}/api/auth/register`, {
-          ...citizenData,
-          role: 'citizen'
-        })
-      }
-      
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        username: citizenData.username,
-        password: citizenData.password
+      await runAuthSubmission(citizenSubmissionLock, (isLoading) => {
+        setLoading((current) => ({ ...current, citizen: isLoading }))
+      }, async () => {
+        if (citizenMode === 'signup') {
+          await axios.post(`${API_BASE_URL}/api/auth/register`, {
+            ...citizenData,
+            role: 'citizen'
+          }, { timeout: AUTH_REQUEST_TIMEOUT_MS })
+          accountCreated = true
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+          username: citizenData.username,
+          password: citizenData.password
+        }, { timeout: AUTH_REQUEST_TIMEOUT_MS })
+        const authData = parseAuthResponse(response, 'citizen')
+
+        try {
+          localStorage.setItem('token', authData.token)
+          localStorage.setItem('user', JSON.stringify(authData.user))
+        } catch (storageError) {
+          const error = new Error('Could not save session')
+          error.code = 'SESSION_STORAGE_FAILED'
+          throw error
+        }
+        navigate('/report')
       })
-
-      if (response.data.user?.role !== 'citizen') {
-        throw new Error('This account belongs to the Authority Portal. Please log in there.')
-      }
-
-      if (!response.data.token) throw new Error('Login succeeded but no session token was returned.')
-
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-      navigate('/report')
     } catch (err) {
-      console.error('Citizen auth error:', err)
       setErrors((current) => ({
         ...current,
-        citizen: err.response?.data?.error || err.message || 'Authentication failed'
+        citizen: getAuthErrorMessage(err, accountCreated)
       }))
-    } finally {
-      setLoading((current) => ({ ...current, citizen: false }))
     }
   }
 
   // Authority handlers
   const handleAuthorityChange = (e) => {
     setAuthorityData({ ...authorityData, [e.target.name]: e.target.value })
+    setErrors((current) => ({ ...current, authority: '' }))
   }
 
   const handleAuthoritySubmit = async (e) => {
     e.preventDefault()
-    setLoading((current) => ({ ...current, authority: true }))
+    if (!e.currentTarget.checkValidity()) {
+      e.currentTarget.reportValidity()
+      return
+    }
     setErrors((current) => ({ ...current, authority: '' }))
 
+    let accountCreated = false
     try {
-      if (authorityMode === 'signup') {
-        await axios.post(`${API_BASE_URL}/api/auth/register`, {
+      await runAuthSubmission(authoritySubmissionLock, (isLoading) => {
+        setLoading((current) => ({ ...current, authority: isLoading }))
+      }, async () => {
+        if (authorityMode === 'signup') {
+          await axios.post(`${API_BASE_URL}/api/auth/register`, {
+            username: authorityData.username,
+            email: authorityData.official_email || authorityData.email,
+            password: authorityData.password,
+            full_name: authorityData.organization,
+            role: 'authority'
+          }, { timeout: AUTH_REQUEST_TIMEOUT_MS })
+          accountCreated = true
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
           username: authorityData.username,
-          email: authorityData.official_email || authorityData.email,
-          password: authorityData.password,
-          full_name: authorityData.organization,
-          role: 'authority'
-        })
-      }
-      
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        username: authorityData.username,
-        password: authorityData.password
+          password: authorityData.password
+        }, { timeout: AUTH_REQUEST_TIMEOUT_MS })
+        const authData = parseAuthResponse(response, 'authority')
+
+        try {
+          localStorage.setItem('token', authData.token)
+          localStorage.setItem('user', JSON.stringify(authData.user))
+        } catch (storageError) {
+          const error = new Error('Could not save session')
+          error.code = 'SESSION_STORAGE_FAILED'
+          throw error
+        }
+        navigate('/dashboard')
       })
-
-      if (response.data.user?.role !== 'authority') {
-        throw new Error('This account belongs to the Citizen Portal. Please log in there.')
-      }
-
-      if (!response.data.token) throw new Error('Login succeeded but no session token was returned.')
-
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-      navigate('/dashboard')
     } catch (err) {
       setErrors((current) => ({
         ...current,
-        authority: err.response?.data?.error || err.message || 'Authentication failed'
+        authority: getAuthErrorMessage(err, accountCreated)
       }))
-    } finally {
-      setLoading((current) => ({ ...current, authority: false }))
     }
   }
 
@@ -130,18 +155,26 @@ function AuthPage() {
               <p className="panel-subtitle">Submit flood reports and help your city stay safe</p>
             </div>
 
-            {errors.citizen && <div className="error-message">{errors.citizen}</div>}
+            {errors.citizen && <div className="error-message" role="alert" aria-live="assertive">{errors.citizen}</div>}
 
             <div className="mode-toggle">
               <button
                 className={citizenMode === 'login' ? 'active' : ''}
-                onClick={() => setCitizenMode('login')}
+                onClick={() => {
+                  setCitizenMode('login')
+                  setErrors((current) => ({ ...current, citizen: '' }))
+                }}
+                disabled={loading.citizen}
               >
                 Login
               </button>
               <button
                 className={citizenMode === 'signup' ? 'active' : ''}
-                onClick={() => setCitizenMode('signup')}
+                onClick={() => {
+                  setCitizenMode('signup')
+                  setErrors((current) => ({ ...current, citizen: '' }))
+                }}
+                disabled={loading.citizen}
               >
                 Signup
               </button>
@@ -216,9 +249,7 @@ function AuthPage() {
 
               <button type="submit" className="submit-btn" disabled={loading.citizen}>
                 {loading.citizen ? (
-                  <>
-                    <span className="spinner"></span> Processing...
-                  </>
+                  <><span className="spinner"></span> {citizenMode === 'login' ? 'Logging in...' : 'Creating account...'}</>
                 ) : (
                   citizenMode === 'login' ? 'Login as Citizen' : 'Create Citizen Account'
                 )}
@@ -244,18 +275,26 @@ function AuthPage() {
               <p className="panel-subtitle">Monitor verified flood alerts and take timely action</p>
             </div>
 
-            {errors.authority && <div className="error-message">{errors.authority}</div>}
+            {errors.authority && <div className="error-message" role="alert" aria-live="assertive">{errors.authority}</div>}
 
             <div className="mode-toggle">
               <button
                 className={authorityMode === 'login' ? 'active' : ''}
-                onClick={() => setAuthorityMode('login')}
+                onClick={() => {
+                  setAuthorityMode('login')
+                  setErrors((current) => ({ ...current, authority: '' }))
+                }}
+                disabled={loading.authority}
               >
                 Login
               </button>
               <button
                 className={authorityMode === 'signup' ? 'active' : ''}
-                onClick={() => setAuthorityMode('signup')}
+                onClick={() => {
+                  setAuthorityMode('signup')
+                  setErrors((current) => ({ ...current, authority: '' }))
+                }}
+                disabled={loading.authority}
               >
                 Signup
               </button>
@@ -317,9 +356,7 @@ function AuthPage() {
 
               <button type="submit" className="submit-btn" disabled={loading.authority}>
                 {loading.authority ? (
-                  <>
-                    <span className="spinner"></span> Processing...
-                  </>
+                  <><span className="spinner"></span> {authorityMode === 'login' ? 'Logging in...' : 'Creating account...'}</>
                 ) : (
                   authorityMode === 'login' ? 'Login as Authority' : 'Register Authority Account'
                 )}
