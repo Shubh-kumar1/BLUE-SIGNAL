@@ -7,6 +7,8 @@ pydantic==2.5.0
 pyjwt==2.8.0
 werkzeug==2.3.7
 requests==2.31.0
+pyjwt==2.15.1
+python-multipart==0.0.20
 numpy==1.24.3
 pillow==10.1.0
 opencv-python==4.8.1.78
