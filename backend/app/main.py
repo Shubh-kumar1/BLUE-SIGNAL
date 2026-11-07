@@ -63,7 +63,7 @@ async def startup_healthcheck() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await startup_healthcheck()
-    classification_service.load()
+    classification_service.load_in_background()
     logger.info("FastAPI application started with PostgreSQL")
     try:
         yield

@@ -1,4 +1,4 @@
-export const AUTH_REQUEST_TIMEOUT_MS = 15000
+export const AUTH_REQUEST_TIMEOUT_MS = 30000
 
 export const getAuthErrorMessage = (error, accountCreated = false) => {
   if (error?.code === 'AUTH_ROLE_MISMATCH') {

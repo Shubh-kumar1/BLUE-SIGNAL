@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -29,16 +30,41 @@ class ClassificationService:
         self.text_classifier = None
         self.flood_classifier = None
         self.image_classifier = None
+        self._load_lock = threading.Lock()
+        self._loading = False
+        self.loaded = False
 
     def load(self) -> None:
-        if os.getenv("LIGHTWEIGHT_MODE", "false").lower() == "true":
+        with self._load_lock:
+            if self.loaded or self._loading:
+                return
+            self._loading = True
+
+        try:
+            logger.info("Loading AI models in the background")
+            import torch
+            from transformers import pipeline
+            torch.set_num_threads(max(1, torch.get_num_threads()))
+            self.text_classifier = pipeline("zero-shot-classification", model="typeform/distilbert-base-uncased-mnli")
+            self.flood_classifier = pipeline("zero-shot-classification", model="typeform/distilbert-base-uncased-mnli")
+            self.image_classifier = pipeline("zero-shot-image-classification", model="openai/clip-vit-base-patch32")
+            self.loaded = True
+            logger.info("AI models loaded successfully")
+        except Exception as exc:
+            logger.exception("AI model loading failed: %s", exc)
+        finally:
+            with self._load_lock:
+                self._loading = False
+
+    def load_in_background(self) -> None:
+        if os.getenv("LIGHTWEIGHT_MODE", "false").strip().lower() == "true":
+            logger.info("LIGHTWEIGHT_MODE enabled; AI model loading is disabled")
             return
-        import torch
-        from transformers import pipeline
-        torch.set_num_threads(max(1, torch.get_num_threads()))
-        self.text_classifier = pipeline("zero-shot-classification", model="typeform/distilbert-base-uncased-mnli")
-        self.flood_classifier = pipeline("zero-shot-classification", model="typeform/distilbert-base-uncased-mnli")
-        self.image_classifier = pipeline("zero-shot-image-classification", model="openai/clip-vit-base-patch32")
+        load_ai_models = os.getenv("LOAD_AI_MODELS")
+        if load_ai_models is not None and load_ai_models.strip().lower() not in {"1", "true", "yes", "on"}:
+            logger.info("LOAD_AI_MODELS disabled AI model loading")
+            return
+        threading.Thread(target=self.load, daemon=True, name="bluesignal-ai-loader").start()
 
     def classify_urgency(self, text: str) -> ClassificationResult:
         try:

@@ -7,8 +7,8 @@ import {
   runAuthSubmission
 } from '../src/utils/auth.js'
 
-test('auth requests use a bounded 15-second timeout', () => {
-  assert.equal(AUTH_REQUEST_TIMEOUT_MS, 15000)
+test('auth requests use a bounded 30-second timeout', () => {
+  assert.equal(AUTH_REQUEST_TIMEOUT_MS, 30000)
 })
 
 test('maps invalid credentials without exposing raw response bodies', () => {
