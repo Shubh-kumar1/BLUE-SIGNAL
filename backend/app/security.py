@@ -5,9 +5,12 @@ import re
 
 import jwt
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-import database
+from app.database import get_db
+from app.models.user import User
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
@@ -47,26 +50,6 @@ def decode_bearer(authorization: str | None) -> dict:
     return payload
 
 
-def current_user(authorization: str | None = Header(default=None, alias="Authorization")) -> dict:
-    payload = decode_bearer(authorization)
-    user = database.get_user_by_username(payload["username"])
-    if not user:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, {"error": "User not found"})
-    return user
-
-
-def citizen_user(user: dict = Depends(current_user)) -> dict:
-    if user["role"] != "citizen":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
-    return user
-
-
-def authority_user(user: dict = Depends(current_user)) -> dict:
-    if user["role"] != "authority":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
-    return user
-
-
 def decode_query_token(token: str | None) -> dict:
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, {"error": "No token provided"})
@@ -81,11 +64,34 @@ def decode_query_token(token: str | None) -> dict:
     return payload
 
 
-def query_user(token: str | None, required_role: str | None = None) -> dict:
+def current_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+) -> User:
+    payload = decode_bearer(authorization)
+    user = db.scalar(select(User).where(User.username == payload["username"]))
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, {"error": "User not found"})
+    return user
+
+
+def citizen_user(user: User = Depends(current_user)) -> User:
+    if user.role != "citizen":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
+    return user
+
+
+def authority_user(user: User = Depends(current_user)) -> User:
+    if user.role != "authority":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
+    return user
+
+
+def query_user(db: Session, token: str | None, required_role: str | None = None) -> User:
     payload = decode_query_token(token)
-    user = database.get_user_by_username(payload["username"])
+    user = db.scalar(select(User).where(User.username == payload["username"]))
     if not user:
         raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
-    if required_role and user["role"] != required_role:
+    if required_role and user.role != required_role:
         raise HTTPException(status.HTTP_403_FORBIDDEN, {"error": "Unauthorized"})
     return user

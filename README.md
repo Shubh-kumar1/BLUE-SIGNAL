@@ -19,8 +19,9 @@ BlueSignal is a full-stack application that combines citizen reporting with adva
 ### Tech Stack
 
 **Backend:**
-- Flask (Python) - REST API
-- SQLite - Database
+- FastAPI (Python) - REST API
+- PostgreSQL - Database
+- SQLAlchemy and Alembic - ORM and migrations
 - Transformers (Hugging Face) - AI/ML models
 - PyTorch - Deep learning framework
 - JWT - Authentication
@@ -38,11 +39,11 @@ BlueSignal is a full-stack application that combines citizen reporting with adva
 ```
 blue-signal/
 ├── backend/
-│   ├── app.py              # Flask API server
-│   ├── database.py         # Database operations
+│   ├── app.py              # FastAPI compatibility entry point
+│   ├── app/main.py         # FastAPI application
 │   ├── requirements.txt    # Python dependencies
-│   ├── test_backend.py     # API tests
-│   └── test_db.py          # Database tests
+│   ├── alembic/            # PostgreSQL migrations
+│   └── test_backend.py     # API smoke tests
 ├── frontend/
 │   ├── src/
 │   │   ├── api/            # API client
@@ -111,9 +112,9 @@ blue-signal/
 1. **Start the backend server:**
    ```bash
    cd backend
-   python app.py
+   uvicorn app.main:app --reload
    ```
-   The API will be available at `http://127.0.0.1:5000`
+   The API will be available at `http://127.0.0.1:8000`
 
 2. **Start the frontend dev server:**
    ```bash
@@ -172,6 +173,7 @@ Set these variables in your shell or hosting platform. The backend does not auto
 
 ```env
 SECRET_KEY=<generated-random-value>
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE
 GOOGLE_API_KEY=your-google-api-key
 GROQ_API_KEY=your-groq-api-key
 ```
@@ -180,20 +182,29 @@ For Vercel, `VITE_API_BASE_URL` is optional when using the default production AP
 
 ### CORS Configuration
 
-Update CORS origins in `backend/app.py` if needed:
-
-```python
-CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])
-```
+Update the allowed origins in the CORS configuration in [backend/app/main.py](backend/app/main.py) if needed.
 
 ### Database
 
-The database (`bluesignal.db`) is automatically created on first run. To reset:
+PostgreSQL tables are managed with Alembic. Configure `DATABASE_URL`, then initialize the schema from the backend directory:
 
 ```bash
-rm backend/bluesignal.db
-python backend/app.py  # Will recreate the database
+alembic upgrade head
 ```
+
+To migrate an existing SQLite database and preserve its records:
+
+```bash
+python scripts/migrate_sqlite_to_postgres.py /path/to/bluesignal.db
+```
+
+Validate the legacy database without changing PostgreSQL first:
+
+```bash
+python scripts/migrate_sqlite_to_postgres.py /path/to/bluesignal.db --dry-run
+```
+
+Back up PostgreSQL before destructive migrations. `bluesignal.db` and SQLite are no longer used.
 
 ## 🧪 Testing
 
@@ -201,9 +212,7 @@ python backend/app.py  # Will recreate the database
 
 ```bash
 cd backend
-python -m unittest test_auth -v
-python test_db.py       # Test database operations
-python test_backend.py  # Test API endpoints (requires server running)
+python test_backend.py  # Test API endpoints (requires the FastAPI server to be running)
 ```
 
 ### Frontend Tests
@@ -216,7 +225,7 @@ npm test
 ### API Health Check
 
 ```bash
-curl http://127.0.0.1:5000/api/health
+curl http://127.0.0.1:8000/api/health
 ```
 
 ## 📡 API Endpoints
@@ -250,11 +259,10 @@ curl http://127.0.0.1:5000/api/health
 ### Backend Deployment
 
 1. Set environment variables on your hosting platform
-2. Update CORS origins in `app.py`
-3. Use a production WSGI server (e.g., Gunicorn):
+2. Run PostgreSQL migrations: `alembic upgrade head`
+3. Start FastAPI with an ASGI server:
    ```bash
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 app:app
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 
 ### Frontend Deployment

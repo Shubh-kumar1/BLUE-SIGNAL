@@ -1,8 +1,9 @@
+import os
 import requests
 import json
 
 def test_backend():
-    base_url = "http://127.0.0.1:5000"
+    base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
     
     print("Testing BlueSignal Backend...")
     
