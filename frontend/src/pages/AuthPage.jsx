@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { API_BASE_URL } from '../api/api'
@@ -38,9 +38,28 @@ function AuthPage() {
   })
   
   const [loading, setLoading] = useState({ citizen: false, authority: false })
+  const [slowAuth, setSlowAuth] = useState({ citizen: false, authority: false })
   const [errors, setErrors] = useState({ citizen: '', authority: '' })
   const citizenSubmissionLock = useRef(false)
   const authoritySubmissionLock = useRef(false)
+  const loadingTimers = useRef({})
+
+  useEffect(() => () => {
+    Object.values(loadingTimers.current).forEach(clearTimeout)
+  }, [])
+
+  const setPortalLoading = (portal, isLoading) => {
+    setLoading((current) => ({ ...current, [portal]: isLoading }))
+    clearTimeout(loadingTimers.current[portal])
+    if (isLoading) {
+      loadingTimers.current[portal] = setTimeout(() => {
+        setSlowAuth((current) => ({ ...current, [portal]: true }))
+      }, 3000)
+    } else {
+      setSlowAuth((current) => ({ ...current, [portal]: false }))
+      delete loadingTimers.current[portal]
+    }
+  }
 
   // Citizen handlers
   const handleCitizenChange = (e) => {
@@ -59,7 +78,7 @@ function AuthPage() {
     let accountCreated = false
     try {
       await runAuthSubmission(citizenSubmissionLock, (isLoading) => {
-        setLoading((current) => ({ ...current, citizen: isLoading }))
+        setPortalLoading('citizen', isLoading)
       }, async () => {
         if (citizenMode === 'signup') {
           await axios.post(`${API_BASE_URL}/api/auth/register`, {
@@ -110,7 +129,7 @@ function AuthPage() {
     let accountCreated = false
     try {
       await runAuthSubmission(authoritySubmissionLock, (isLoading) => {
-        setLoading((current) => ({ ...current, authority: isLoading }))
+        setPortalLoading('authority', isLoading)
       }, async () => {
         if (authorityMode === 'signup') {
           await axios.post(`${API_BASE_URL}/api/auth/register`, {
@@ -254,11 +273,16 @@ function AuthPage() {
 
               <button type="submit" className="submit-btn" disabled={loading.citizen}>
                 {loading.citizen ? (
-                  <><span className="spinner"></span> {citizenMode === 'login' ? 'Logging in...' : 'Creating account...'}</>
+                  <><span className="spinner" aria-hidden="true"></span> {citizenMode === 'login' ? 'Connecting...' : 'Creating account...'}</>
                 ) : (
                   citizenMode === 'login' ? 'Login as Citizen' : 'Create Citizen Account'
                 )}
               </button>
+              {loading.citizen && slowAuth.citizen && (
+                <p className="auth-wait-message" role="status">
+                  The server may be starting up. This can take up to a minute.
+                </p>
+              )}
             </form>
 
             <div className="panel-footer">
@@ -375,11 +399,16 @@ function AuthPage() {
 
               <button type="submit" className="submit-btn" disabled={loading.authority}>
                 {loading.authority ? (
-                  <><span className="spinner"></span> {authorityMode === 'login' ? 'Logging in...' : 'Creating account...'}</>
+                  <><span className="spinner" aria-hidden="true"></span> {authorityMode === 'login' ? 'Connecting...' : 'Creating account...'}</>
                 ) : (
                   authorityMode === 'login' ? 'Login as Authority' : 'Register Authority Account'
                 )}
               </button>
+              {loading.authority && slowAuth.authority && (
+                <p className="auth-wait-message" role="status">
+                  The server may be starting up. This can take up to a minute.
+                </p>
+              )}
             </form>
 
             <div className="panel-footer">

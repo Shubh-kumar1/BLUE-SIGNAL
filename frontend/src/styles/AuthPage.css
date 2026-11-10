@@ -135,12 +135,23 @@
 }
 
 .spinner {
+  display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid #659BB9;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  vertical-align: -3px;
+  margin-right: 8px;
+}
+
+.auth-wait-message {
+  margin: -20px 0 0;
+  color: #FFFCEF;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 @keyframes spin {
