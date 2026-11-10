@@ -16,11 +16,11 @@ def create_post(db: Session, user_id: int, title: str, description: str, media_u
     return post
 
 
-def create_report(db: Session, post: Post, user_id: int, urgency: str, flood_type: str,
-                  confidence: float, summary: str, latitude: float | None, longitude: float | None,
+def create_report(db: Session, post: Post, user_id: int, urgency: str | None, flood_type: str | None,
+                  confidence: float | None, summary: str | None, latitude: float | None, longitude: float | None,
                   location_name: str | None) -> Report:
     report = Report(post_id=post.id, user_id=user_id, urgency_level=urgency,
-                    flood_type=flood_type, confidence_score=confidence, verified=True,
+                    flood_type=flood_type, confidence_score=confidence, verified=False,
                     ai_summary=summary, latitude=latitude, longitude=longitude,
                     location_name=location_name)
     db.add(report)
@@ -69,6 +69,7 @@ def map_reports(db: Session) -> list[dict]:
         "id": report.id, "post_id": report.post_id, "title": post.title,
         "description": post.description, "urgency_level": report.urgency_level,
         "flood_type": report.flood_type, "ai_summary": report.ai_summary,
+        "image_classification": report.image_classification,
         "latitude": report.latitude, "longitude": report.longitude,
         "location_name": report.location_name, "status": post.status,
     } for report, post in rows]
@@ -84,6 +85,7 @@ def all_reports(db: Session) -> list[dict]:
         "description": post.description, "media_url": post.media_url, "status": post.status,
         "username": username, "urgency_level": report.urgency_level,
         "flood_type": report.flood_type, "confidence_score": report.confidence_score,
+        "image_classification": report.image_classification,
         "verified": report.verified, "ai_summary": report.ai_summary,
         "latitude": report.latitude, "longitude": report.longitude,
         "location_name": report.location_name, "created_at": report.created_at,

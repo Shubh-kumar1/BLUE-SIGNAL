@@ -12,6 +12,9 @@ import '../styles/AuthPage.css'
 
 function AuthPage() {
   const navigate = useNavigate()
+  const demoUsername = import.meta.env.VITE_DEMO_AUTH_USERNAME
+  const demoPassword = import.meta.env.VITE_DEMO_AUTH_PASSWORD
+  const demoCredentialsConfigured = Boolean(demoUsername && demoPassword)
   
   // Citizen form state
   const [citizenMode, setCitizenMode] = useState('login') // 'login' or 'signup'
@@ -30,7 +33,8 @@ function AuthPage() {
     email: '',
     password: '',
     organization: '',
-    official_email: ''
+    official_email: '',
+    registration_token: ''
   })
   
   const [loading, setLoading] = useState({ citizen: false, authority: false })
@@ -114,7 +118,8 @@ function AuthPage() {
             email: authorityData.official_email || authorityData.email,
             password: authorityData.password,
             full_name: authorityData.organization,
-            role: 'authority'
+            role: 'authority',
+            authority_registration_token: authorityData.registration_token
           }, { timeout: AUTH_REQUEST_TIMEOUT_MS })
           accountCreated = true
         }
@@ -341,6 +346,20 @@ function AuthPage() {
                 </div>
               )}
 
+              {authorityMode === 'signup' && (
+                <div className="form-group">
+                  <label>Invitation Token</label>
+                  <input
+                    type="password"
+                    name="registration_token"
+                    value={authorityData.registration_token}
+                    onChange={handleAuthorityChange}
+                    autoComplete="off"
+                    required
+                  />
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Password</label>
                 <input
@@ -371,18 +390,18 @@ function AuthPage() {
               </p>
             </div>
 
-            {authorityMode === 'login' && (
+            {authorityMode === 'login' && demoCredentialsConfigured && (
               <div className="demo-credentials">
                 <p className="demo-title">Demo Account:</p>
-                <p>Username: <code>admin</code> | Password: <code>admin123</code></p>
+                <p>Username: <code>{demoUsername}</code></p>
                 <button
                   type="button"
                   className="demo-fill-btn"
                   onClick={() => {
                     setAuthorityData((current) => ({
                       ...current,
-                      username: 'admin',
-                      password: 'admin123'
+                      username: demoUsername,
+                      password: demoPassword
                     }))
                     setErrors((current) => ({ ...current, authority: '' }))
                   }}

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -22,6 +22,7 @@ class Report(Base):
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     ai_summary: Mapped[str | None] = mapped_column(String, nullable=True)
+    image_classification: Mapped[dict[str, str | float] | None] = mapped_column(JSON, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     location_name: Mapped[str | None] = mapped_column(String, nullable=True)

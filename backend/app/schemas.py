@@ -10,6 +10,16 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=6, max_length=1024)
     role: str = "citizen"
     full_name: str = ""
+    authority_registration_token: str | None = None
+
+
+class CitizenPostRequest(BaseModel):
+    title: str = Field(default="Flood Report", min_length=1, max_length=256)
+    description: str = Field(default="", max_length=10_000)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    location_name: str = Field(default="Unknown Location", max_length=256)
+    media_url: str | None = None
 
 
 class LoginRequest(BaseModel):

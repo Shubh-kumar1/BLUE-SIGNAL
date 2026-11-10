@@ -1,4 +1,5 @@
 import csv
+import hmac
 import io
 import json
 import logging
@@ -8,24 +9,37 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import jwt
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.concurrency import run_in_threadpool
 from werkzeug.utils import secure_filename
 
-from app.database import get_db, engine
+from app.database import SessionLocal, get_db, engine
+from app.config import get_cors_origins
 from app.models.post import Post
+from app.models.ai_job import AIJob
 from app.models.report import Report
 from app.models.user import User
 from app.models.vote import Vote
-from app.schemas import ImageClassificationRequest, LoginRequest, RegisterRequest, TextClassificationRequest, VoteRequest
+from app.schemas import (
+    CitizenPostRequest,
+    ImageClassificationRequest,
+    LoginRequest,
+    RegisterRequest,
+    TextClassificationRequest,
+    VoteRequest,
+)
 from app.security import (
     authority_user,
     citizen_user,
@@ -35,9 +49,22 @@ from app.security import (
     query_user,
     verify_password,
 )
-from app.services.classification_service import ClassificationService
+from app.services.classification_service import (
+    ClassificationResult,
+    ClassificationService,
+    ClassificationUnavailableError,
+    ImageClassificationResult,
+)
+from app.services.ai_job_worker import AIJobWorker
 from app.services.report_service import all_reports, create_post, create_report, map_reports, posts_with_votes, user_posts, user_profile
-from app.services.sse_service import hotspot_listeners, post_listeners, publish, stream
+from app.services.sse_service import (
+    hotspot_listeners,
+    post_listeners,
+    publish,
+    start_postgres_listener,
+    stop_postgres_listener,
+    stream,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -64,18 +91,24 @@ async def startup_healthcheck() -> None:
 async def lifespan(app: FastAPI):
     await startup_healthcheck()
     classification_service.load_in_background()
-    logger.info("FastAPI application started with PostgreSQL")
+    ai_job_worker = AIJobWorker(UPLOAD_FOLDER, process_report)
+    app.state.ai_job_worker = ai_job_worker
+    ai_job_worker.start()
+    postgres_listener = None
     try:
+        postgres_listener = start_postgres_listener(engine, refresh_streams)
+        logger.info("FastAPI application started with PostgreSQL")
         yield
     finally:
+        ai_job_worker.stop()
+        stop_postgres_listener(postgres_listener)
         engine.dispose()
 
 
 app = FastAPI(title="BlueSignal API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001",
-                   "https://blue-signal.vercel.app", "https://blue-signal-1648rv5mv-shubhamraj9493-9503s-projects.vercel.app"],
+    allow_origins=get_cors_origins(),
     allow_headers=["Content-Type", "Authorization"],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
@@ -87,6 +120,12 @@ async def compatibility_http_exception_handler(request: Request, exc: HTTPExcept
     if isinstance(exc.detail, dict):
         return JSONResponse(status_code=exc.status_code, content=exc.detail)
     return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled request error for %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 @app.get("/api/health")
@@ -106,6 +145,12 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
     email = str(payload.email).strip().lower()
     if payload.role not in {"citizen", "authority"}:
         raise HTTPException(400, {"error": "Role must be citizen or authority"})
+    if payload.role == "authority":
+        registration_token = os.getenv("AUTHORITY_REGISTRATION_TOKEN")
+        if not registration_token or not payload.authority_registration_token or not hmac.compare_digest(
+            registration_token, payload.authority_registration_token
+        ):
+            raise HTTPException(403, {"error": "Authority registration requires a valid invitation"})
     if db.scalar(select(User).where(User.username == username)):
         raise HTTPException(409, {"error": "Username already exists"})
     if db.scalar(select(User).where(User.email == email)):
@@ -143,63 +188,155 @@ def citizen_posts(db: Session = Depends(get_db), user: User = Depends(citizen_us
     return {"posts": user_posts(db, user.id)}
 
 
-@app.post("/api/auth/citizen/posts")
-async def create_citizen_post(request: Request,
-                              db: Session = Depends(get_db), user: User = Depends(citizen_user)) -> dict:
+@app.post("/api/auth/citizen/posts", status_code=202)
+async def create_citizen_post(request: Request, user: User = Depends(citizen_user)) -> dict:
     image = None
+    form = None
     if "application/json" in request.headers.get("content-type", ""):
         payload = await request.json()
-        title = payload.get("title", "Flood Report")
-        description = payload.get("description", "")
-        latitude = payload.get("latitude")
-        longitude = payload.get("longitude")
-        location_name = payload.get("location_name", "Unknown Location")
-        media_url = payload.get("media_url")
     else:
         form = await request.form()
-        title = form.get("title") or "Flood Report"
-        description = form.get("description") or ""
-        latitude = float(form["latitude"]) if form.get("latitude") else None
-        longitude = float(form["longitude"]) if form.get("longitude") else None
-        location_name = form.get("location_name") or "Unknown Location"
-        media_url = None
-        image = form.get("image") if isinstance(form.get("image"), UploadFile) else None
+        payload = dict(form)
+        image = payload.pop("image", None)
+        if not isinstance(image, StarletteUploadFile):
+            image = None
+    try:
+        report_data = CitizenPostRequest.model_validate(payload)
+    except ValidationError as exc:
+        if form is not None:
+            await form.close()
+        raise HTTPException(422, {"error": "Invalid report data"}) from exc
+
+    title = report_data.title.strip() or "Flood Report"
+    description = report_data.description.strip()
+    latitude = report_data.latitude
+    longitude = report_data.longitude
+    location_name = report_data.location_name.strip()
+    media_url = report_data.media_url
 
     saved_path = None
+    body = None
+    try:
+        if image and image.filename:
+            try:
+                if image.content_type not in ALLOWED_IMAGE_TYPES:
+                    raise HTTPException(400, {"error": "Unsupported image type"})
+                body = await image.read(MAX_UPLOAD_SIZE + 1)
+                if len(body) > MAX_UPLOAD_SIZE:
+                    raise HTTPException(400, {"error": "Image file is too large"})
+                if not image_content_matches(image.content_type, body):
+                    raise HTTPException(400, {"error": "Image content does not match its file type"})
+            finally:
+                await image.close()
+    finally:
+        if form is not None:
+            await form.close()
+
     if image and image.filename:
-        if image.content_type not in ALLOWED_IMAGE_TYPES:
-            raise HTTPException(400, {"error": "Unsupported image type"})
-        body = await image.read(MAX_UPLOAD_SIZE + 1)
-        if len(body) > MAX_UPLOAD_SIZE:
-            raise HTTPException(400, {"error": "Image file is too large"})
         filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
         saved_path = UPLOAD_FOLDER / filename
-        saved_path.write_bytes(body)
+        try:
+            await run_in_threadpool(saved_path.write_bytes, body)
+        except OSError as exc:
+            saved_path.unlink(missing_ok=True)
+            logger.exception("Failed to store citizen image")
+            raise HTTPException(500, {"error": "Failed to store uploaded image"}) from exc
         media_url = f"/uploads/{filename}"
 
-    urgency = classification_service.classify_urgency(description)
-    flood_type = classification_service.classify_flood_type(description)
-    post = create_post(db, user.id, title, description, media_url, latitude, longitude, location_name)
-    summary = generate_summary(description, urgency.model_dump(), flood_type.model_dump(), location_name)
-    report = create_report(db, post, user.id, urgency.class_name, flood_type.class_name,
-                           urgency.confidence, summary, latitude, longitude, location_name)
-    post.status = "verified"
-    db.commit()
-    db.refresh(post)
-    db.refresh(report)
+    post_id, report_id, post_status = await run_in_threadpool(
+        persist_citizen_report,
+        user.id,
+        title,
+        description,
+        media_url,
+        latitude,
+        longitude,
+        location_name,
+        saved_path,
+    )
+    return {
+        "message": "Report received; AI processing is underway.",
+        "post_id": post_id,
+        "report_id": report_id,
+        "status": post_status,
+        "verified": False,
+        "urgency": None,
+        "flood_type": None,
+        "ai_summary": None,
+        "image_classification": None,
+    }
 
-    image_result = classification_service.classify_image(str(saved_path)) if saved_path else None
-    hotspot_payload = {"id": report.id, "post_id": post.id, "title": title,
-                       "description": description, "urgency_level": urgency.class_name,
-                       "flood_type": flood_type.class_name, "ai_summary": summary,
-                       "latitude": latitude, "longitude": longitude,
-                       "location_name": location_name, "status": post.status}
-    publish(hotspot_listeners, {"type": "hotspot", "data": hotspot_payload})
-    publish(post_listeners, {"type": "post", "data": posts_with_votes(db)[0] if posts_with_votes(db) else None})
-    return {"message": "Post created successfully", "post_id": post.id, "report_id": report.id,
-            "urgency": urgency.class_name, "flood_type": flood_type.class_name,
-            "verified": True, "ai_summary": summary,
-            "image_classification": image_result.model_dump() if image_result else None}
+
+def image_content_matches(content_type: str, body: bytes) -> bool:
+    signatures = {
+        "image/jpeg": (b"\xff\xd8\xff",),
+        "image/png": (b"\x89PNG\r\n\x1a\n",),
+        "image/gif": (b"GIF87a", b"GIF89a"),
+    }
+    if content_type == "image/webp":
+        return len(body) >= 12 and body.startswith(b"RIFF") and body[8:12] == b"WEBP"
+    return any(body.startswith(signature) for signature in signatures.get(content_type, ()))
+
+
+def csv_safe_value(value: Any) -> Any:
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
+def persist_citizen_report(
+    user_id: int,
+    title: str,
+    description: str,
+    media_url: str | None,
+    latitude: float | None,
+    longitude: float | None,
+    location_name: str,
+    saved_path: Path | None,
+) -> tuple[int, int, str]:
+    with SessionLocal() as db:
+        try:
+            post = create_post(
+                db,
+                user_id,
+                title,
+                description,
+                media_url,
+                latitude,
+                longitude,
+                location_name,
+            )
+            report = create_report(
+                db,
+                post,
+                user_id,
+                None,
+                None,
+                None,
+                None,
+                latitude,
+                longitude,
+                location_name,
+            )
+            db.add(
+                AIJob(
+                    report_id=report.id,
+                    image_filename=saved_path.name if saved_path else None,
+                )
+            )
+            db.commit()
+            db.refresh(post)
+            db.refresh(report)
+            return post.id, report.id, post.status
+        except Exception:
+            db.rollback()
+            if saved_path:
+                try:
+                    saved_path.unlink(missing_ok=True)
+                except OSError:
+                    logger.exception("Failed to remove an orphaned uploaded image")
+            logger.exception("Failed to persist citizen report")
+            raise HTTPException(500, {"error": "Failed to save report"})
 
 
 @app.get("/api/auth/authority/hotspots")
@@ -227,10 +364,17 @@ def vote(post_id: int, payload: VoteRequest, db: Session = Depends(get_db), user
     else:
         db.add(Vote(post_id=post_id, user_id=user.id, vote_type=payload.vote_type))
     try:
+        queue_stream_change(db)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(500, {"error": "Failed to record vote"})
+    if db.get_bind().dialect.name != "postgresql":
+        updated_post = next(
+            (item for item in posts_with_votes(db) if item["id"] == post_id),
+            None,
+        )
+        publish(post_listeners, {"type": "post", "data": updated_post})
     return {"message": "Vote recorded successfully"}
 
 
@@ -254,13 +398,15 @@ def profile_by_username(username: str, db: Session = Depends(get_db), user: User
 @app.get("/api/auth/authority/hotspots/stream")
 def hotspot_stream(token: str | None = Query(default=None), db: Session = Depends(get_db)) -> StreamingResponse:
     query_user(db, token, "authority")
-    return stream(hotspot_listeners, lambda: map_reports(db))
+    db.close()
+    return stream(hotspot_listeners, load_hotspot_snapshot)
 
 
 @app.get("/api/posts/stream")
 def post_stream(token: str | None = Query(default=None), db: Session = Depends(get_db)) -> StreamingResponse:
     query_user(db, token)
-    return stream(post_listeners, lambda: posts_with_votes(db))
+    db.close()
+    return stream(post_listeners, load_post_snapshot)
 
 
 @app.get("/api/auth/authority/reports/export")
@@ -277,7 +423,13 @@ def export_reports(format: str = Query(default="json"), token: str | None = Quer
         if export_rows:
             writer = csv.DictWriter(output, fieldnames=list(export_rows[0]))
             writer.writeheader()
-            writer.writerows(export_rows)
+            writer.writerows(
+                {
+                    key: csv_safe_value(value)
+                    for key, value in row.items()
+                }
+                for row in export_rows
+            )
         return StreamingResponse(iter([output.getvalue()]), media_type="text/csv",
                                  headers={"Content-Disposition": 'attachment; filename="reports.csv"'})
     return StreamingResponse(iter([json.dumps(export_rows, ensure_ascii=False, default=str)]), media_type="application/json",
@@ -286,8 +438,11 @@ def export_reports(format: str = Query(default="json"), token: str | None = Quer
 
 @app.post("/api/classify/text")
 def classify_text(payload: TextClassificationRequest) -> dict:
-    urgency = classification_service.classify_urgency(payload.text)
-    flood = classification_service.classify_flood_type(payload.text)
+    try:
+        urgency = classification_service.classify_urgency(payload.text)
+        flood = classification_service.classify_flood_type(payload.text)
+    except ClassificationUnavailableError:
+        raise HTTPException(503, {"error": "AI classification is temporarily unavailable"})
     return {"status": "success", "data": {"text": payload.text,
                                            "urgency_classification": urgency.model_dump(),
                                            "flood_classification": flood.model_dump()}}
@@ -295,10 +450,120 @@ def classify_text(payload: TextClassificationRequest) -> dict:
 
 @app.post("/api/classify/image")
 def classify_image(payload: ImageClassificationRequest) -> dict:
-    if not os.path.isfile(payload.image_path):
+    image_path = Path(payload.image_path).resolve()
+    if not image_path.is_relative_to(UPLOAD_FOLDER):
+        raise HTTPException(400, {"error": "Image path must reference an uploaded image"})
+    if not image_path.is_file():
         raise HTTPException(404, {"error": "Image file not found"})
-    result = classification_service.classify_image(payload.image_path)
+    try:
+        result = classification_service.classify_image(str(image_path))
+    except ClassificationUnavailableError:
+        raise HTTPException(503, {"error": "AI classification is temporarily unavailable"})
     return {"status": "success", "data": result.model_dump()}
+
+
+def process_report(report_id: int, image_path: str | None) -> bool:
+    with SessionLocal() as task_db:
+        report = task_db.get(Report, report_id)
+        if report is None:
+            logger.error("Queued report %s no longer exists", report_id)
+            return False
+        post = task_db.get(Post, report.post_id)
+        if post is None:
+            logger.error("Queued report %s has no post", report_id)
+            return False
+        description = post.description
+        location_name = post.location_name
+
+    analysis_result: tuple[
+        ClassificationResult,
+        ClassificationResult,
+        ImageClassificationResult | None,
+        str,
+    ] | None = None
+    try:
+        urgency = classification_service.classify_urgency(description)
+        flood_type = classification_service.classify_flood_type(description)
+        image_result = None
+        if image_path:
+            image_result = classification_service.classify_image(image_path)
+        summary = generate_summary(
+            description,
+            urgency.model_dump(),
+            flood_type.model_dump(),
+            location_name,
+        )
+        analysis_result = (urgency, flood_type, image_result, summary)
+    except Exception:
+        logger.exception("AI processing failed for report %s", report_id)
+
+    with SessionLocal() as task_db:
+        report = task_db.get(Report, report_id)
+        if report is None:
+            logger.error("Queued report %s disappeared during AI processing", report_id)
+            return False
+        post = task_db.get(Post, report.post_id)
+        if post is None:
+            logger.error("Post for report %s disappeared during AI processing", report_id)
+            return False
+
+        if analysis_result is not None:
+            urgency, flood_type, image_result, summary = analysis_result
+            report.urgency_level = urgency.class_name
+            report.flood_type = flood_type.class_name
+            report.confidence_score = urgency.confidence
+            report.ai_summary = summary
+            report.image_classification = image_result.model_dump() if image_result else None
+            report.verified = True
+            post.status = "verified"
+        else:
+            report.verified = False
+            report.ai_summary = "AI processing failed. Please review this report manually."
+            post.status = "processing_failed"
+        queue_stream_change(task_db)
+        task_db.commit()
+
+        if task_db.get_bind().dialect.name == "postgresql":
+            return analysis_result is not None
+
+        updated_hotspot = next(
+            (item for item in map_reports(task_db) if item["id"] == report_id),
+            None,
+        )
+        posts = posts_with_votes(task_db)
+        updated_post = next((item for item in posts if item["id"] == report.post_id), None)
+        publish(hotspot_listeners, {"type": "hotspot", "data": updated_hotspot})
+        publish(post_listeners, {"type": "post", "data": updated_post})
+        return analysis_result is not None
+
+
+def queue_stream_change(db: Session) -> None:
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_notify('bluesignal_changes', 'refresh')"))
+
+
+def refresh_streams() -> None:
+    try:
+        publish(
+            hotspot_listeners,
+            {"type": "snapshot", "data": load_hotspot_snapshot()},
+        )
+        publish(
+            post_listeners,
+            {"type": "snapshot", "data": load_post_snapshot()},
+        )
+    except Exception:
+        logger.exception("Failed to refresh SSE snapshots after a database notification")
+
+
+def load_hotspot_snapshot() -> list[dict]:
+    with SessionLocal() as snapshot_db:
+        return map_reports(snapshot_db)
+
+
+def load_post_snapshot() -> list[dict]:
+    with SessionLocal() as snapshot_db:
+        return posts_with_votes(snapshot_db)
 
 
 def generate_summary(description: str, urgency: dict, flood: dict, location: str | None) -> str:

@@ -40,7 +40,7 @@ conda-env/
 .env.local
 .env.*.local
 
-# Flask
+# Local application state
 instance/
 .webassets-cache
 *.db
@@ -83,4 +83,3 @@ Desktop.ini
 /backend/app/static/exports/
 /backend/models/*.pkl
 /backend/models/*.joblib
-

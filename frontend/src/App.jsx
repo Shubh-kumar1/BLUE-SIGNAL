@@ -1,14 +1,15 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import ClickSpark from './components/ClickSpark'
-import Home from './pages/Home'
-import AuthPage from './pages/AuthPage'
-import CitizenFeed from './pages/CitizenFeed'
-import HomeFeed from './pages/HomeFeed'
-import UserProfile from './pages/UserProfile'
-import AuthorityDashboard from './pages/AuthorityDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+
+const Home = lazy(() => import('./pages/Home'))
+const AuthPage = lazy(() => import('./pages/AuthPage'))
+const CitizenFeed = lazy(() => import('./pages/CitizenFeed'))
+const HomeFeed = lazy(() => import('./pages/HomeFeed'))
+const UserProfile = lazy(() => import('./pages/UserProfile'))
+const AuthorityDashboard = lazy(() => import('./pages/AuthorityDashboard'))
 
 function App() {
   return (
@@ -21,49 +22,51 @@ function App() {
         duration={500}
       >
         <div className="app">
-          <Routes>
-            {/* Public Routes with Navbar */}
-            <Route path="/" element={<><Navbar /><Home /></>} />
-            
-            {/* Auth Route (Split Screen Login/Signup) */}
-            <Route path="/auth" element={<AuthPage />} />
-            
-            {/* Protected Routes - Citizen (No Navbar) */}
-            <Route 
-              path="/report" 
-              element={
-                <ProtectedRoute requiredRole="citizen">
-                  <CitizenFeed />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/feed" 
-              element={
-                <ProtectedRoute requiredRole="citizen">
-                  <HomeFeed />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile/:username" 
-              element={
-                <ProtectedRoute requiredRole="citizen">
-                  <UserProfile />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Protected Routes - Authority */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="authority">
-                  <AuthorityDashboard />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
+          <Suspense fallback={<div role="status">Loading page...</div>}>
+            <Routes>
+              {/* Public Routes with Navbar */}
+              <Route path="/" element={<><Navbar /><Home /></>} />
+
+              {/* Auth Route (Split Screen Login/Signup) */}
+              <Route path="/auth" element={<AuthPage />} />
+
+              {/* Protected Routes - Citizen (No Navbar) */}
+              <Route
+                path="/report"
+                element={
+                  <ProtectedRoute requiredRole="citizen">
+                    <CitizenFeed />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/feed"
+                element={
+                  <ProtectedRoute requiredRole="citizen">
+                    <HomeFeed />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/:username"
+                element={
+                  <ProtectedRoute requiredRole="citizen">
+                    <UserProfile />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Protected Routes - Authority */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="authority">
+                    <AuthorityDashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Suspense>
         </div>
       </ClickSpark>
     </Router>
@@ -71,4 +74,3 @@ function App() {
 }
 
 export default App
-

@@ -115,14 +115,22 @@ function AuthorityDashboard() {
         el.style.border = '2px solid #FFFCEF'
         el.style.boxShadow = '0 0 0 2px rgba(198,40,40,0.25)'
 
+        const popupContent = document.createElement('div')
+        popupContent.style.fontFamily = "'Roboto Mono', monospace"
+        popupContent.style.color = '#1a1a1a'
+        const title = document.createElement('div')
+        title.style.fontWeight = '700'
+        title.style.marginBottom = '6px'
+        title.textContent = r.title || 'Report'
+        const location = document.createElement('div')
+        location.style.fontSize = '12px'
+        location.style.opacity = '0.8'
+        location.textContent = r.location_name || ''
+        popupContent.append(title, location)
+
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([r.longitude, r.latitude])
-          .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(
-            `<div style="font-family: 'Roboto Mono', monospace; color:#1a1a1a">`
-            + `<div style="font-weight:700;margin-bottom:6px">${r.title || 'Report'}</div>`
-            + `<div style="font-size:12px;opacity:0.8">${r.location_name || ''}</div>`
-            + `</div>`
-          ))
+          .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(popupContent))
           .addTo(mapRef.current)
 
         el.addEventListener('click', () => setSelectedReport(r))

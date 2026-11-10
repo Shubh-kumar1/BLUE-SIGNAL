@@ -43,7 +43,7 @@ blue-signal/
 │   ├── app/main.py         # FastAPI application
 │   ├── requirements.txt    # Python dependencies
 │   ├── alembic/            # PostgreSQL migrations
-│   └── test_backend.py     # API smoke tests
+│   └── tests/              # API and migration tests
 ├── frontend/
 │   ├── src/
 │   │   ├── api/            # API client
@@ -62,8 +62,9 @@ blue-signal/
 
 ### Prerequisites
 
-- Python 3.8+
-- Node.js 16+ and npm
+- Python 3.10-3.11 (matches the pinned PyTorch stack)
+- PostgreSQL 14+
+- Node.js 18+ and npm
 - API keys (optional):
   - Google API Key (for Gemini)
   - Groq API Key (for LLaMA models)
@@ -91,14 +92,26 @@ blue-signal/
    
    # Install dependencies
    pip install -r requirements.txt
+   pip install -r requirements-test.txt  # Optional; needed only to run API integration tests
    
    # Set a unique signing key (required; generate a fresh value locally)
    python -c "import secrets; print(secrets.token_urlsafe(48))"
    export SECRET_KEY="<paste-generated-value>"
 
+   # Configure PostgreSQL and create the schema
+   export DATABASE_URL="postgresql+psycopg://bluesignal:password@localhost:5432/bluesignal"
+   createdb bluesignal
+   alembic upgrade head
+
+   # AI inference is opt-in because model weights are large
+   export LOAD_AI_MODELS=true
+
    # AI provider keys are optional
    export GOOGLE_API_KEY="your-google-api-key"
    export GROQ_API_KEY="your-groq-api-key"
+
+   # Required only when creating authority accounts
+   export AUTHORITY_REGISTRATION_TOKEN="<set-a-private-invitation-token>"
    ```
 
 3. **Frontend Setup:**
@@ -128,21 +141,17 @@ blue-signal/
    - Register as a citizen or authority user
    - Start reporting floods or monitoring the dashboard
 
-During development, the frontend uses the local backend through the Vite proxy. For a deployed frontend using a different backend, set `VITE_API_BASE_URL` to its origin (without `/api`).
+During development, the frontend uses the local FastAPI backend through the Vite proxy on port 8000. For a deployed frontend using a different backend, set `VITE_API_BASE_URL` to its origin (without `/api`).
 
-For local backend auth, set `SECRET_KEY` to a generated value at least 32 characters long. In Render, configure `SECRET_KEY` as a secret environment variable before deploying; changing it invalidates existing JWT sessions. The backend only loads AI models when `LOAD_AI_MODELS=true`, so login and signup do not require model initialization.
+Set `SECRET_KEY` to a generated value at least 32 characters long. In Render, configure it as a secret environment variable before deploying; changing it invalidates existing JWT sessions. Authority signups require the private `AUTHORITY_REGISTRATION_TOKEN`; citizen signups do not. Configure `CORS_ORIGINS` as a comma-separated list of trusted frontend origins in production.
 
-### Default Demo Accounts
+AI models are loaded only when `LOAD_AI_MODELS=true`; otherwise report submissions are retained and marked for manual review if classification is unavailable. Initial model downloads and inference require significant memory and disk space.
 
-The database is initialized with demo accounts:
+Report submissions and their AI jobs are committed together to PostgreSQL. Each FastAPI process runs a queue worker that claims jobs with `FOR UPDATE SKIP LOCKED`; interrupted jobs can be reclaimed after their lease expires, and repeated lease expiry marks the report for manual review. Keep `UPLOAD_FOLDER` on persistent storage so queued image jobs can access uploaded files after a restart. Multiple API processes can share the PostgreSQL queue safely.
 
-- **Authority:** `admin` / `admin123`
-- **Citizens:** 
-  - `floodwatcher` / `password123`
-  - `mumbai_resident` / `password123`
-  - `weather_alert` / `password123`
+### Account provisioning
 
-On the Authority Portal, select **Fill demo credentials** to populate the admin login.
+The backend does not create default accounts. Create authority accounts with the configured invitation token; for a non-production demo, the authority login form can optionally show prefilled credentials using `VITE_DEMO_AUTH_USERNAME` and `VITE_DEMO_AUTH_PASSWORD`.
 
 ## 📱 Features
 
@@ -174,15 +183,22 @@ Set these variables in your shell or hosting platform. The backend does not auto
 ```env
 SECRET_KEY=<generated-random-value>
 DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE
+AUTHORITY_REGISTRATION_TOKEN=<private-invitation-token>
+CORS_ORIGINS=https://your-frontend.example
+UPLOAD_FOLDER=/var/lib/bluesignal/uploads
+LOAD_AI_MODELS=false
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT_SECONDS=30
 GOOGLE_API_KEY=your-google-api-key
 GROQ_API_KEY=your-groq-api-key
 ```
 
-For Vercel, `VITE_API_BASE_URL` is optional when using the default production API. If set, use the backend origin without a trailing slash or `/api`, then redeploy the frontend. Optional backend variables are `GOOGLE_API_KEY`, `GROQ_API_KEY`, and `LOAD_AI_MODELS`.
+Use a persistent upload volume in production; the default upload directory is local to the running backend instance. For Vercel, `VITE_API_BASE_URL` is optional when using the default production API. If set, use the backend origin without a trailing slash or `/api`, then redeploy the frontend.
 
 ### CORS Configuration
 
-Update the allowed origins in the CORS configuration in [backend/app/main.py](backend/app/main.py) if needed.
+Set `CORS_ORIGINS` to a comma-separated list of trusted frontend origins. The existing development and deployment origins remain the default when it is unset.
 
 ### Database
 
@@ -204,7 +220,7 @@ Validate the legacy database without changing PostgreSQL first:
 python scripts/migrate_sqlite_to_postgres.py /path/to/bluesignal.db --dry-run
 ```
 
-Back up PostgreSQL before destructive migrations. `bluesignal.db` and SQLite are no longer used.
+The application runtime uses PostgreSQL. SQLite is retained only as the read-only source format for the one-time migration utility; keep the original file and a backup until the destination counts and IDs have been verified.
 
 ## 🧪 Testing
 
@@ -212,7 +228,8 @@ Back up PostgreSQL before destructive migrations. `bluesignal.db` and SQLite are
 
 ```bash
 cd backend
-python test_backend.py  # Test API endpoints (requires the FastAPI server to be running)
+python -m unittest discover -s tests -v  # Isolated API integration tests
+python test_backend.py  # Live health/auth smoke test (requires the server to be running)
 ```
 
 ### Frontend Tests
